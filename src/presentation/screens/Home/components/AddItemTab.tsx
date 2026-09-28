@@ -11,8 +11,10 @@ import {
 } from "react-native";
 import { useTheme } from "../../../../context/ThemeContext";
 import { Category } from "../../../../domain/Category";
+import { fetchProductByBarcode } from "../../../../services/barcodeService";
 import { fetchLinkMetadata } from "../../../../services/linkMetadataService";
 import { styles } from "../HomeScreen.styles";
+import { BarcodeScannerModal } from "./BarcodeScannerModal";
 
 interface AddItemTabProps {
   categories: Category[];
@@ -68,11 +70,56 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
   const { t } = useTranslation();
   const { colors, isDarkMode } = useTheme();
   const [loadingMeta, setLoadingMeta] = useState(false);
+  const [loadingBarcode, setLoadingBarcode] = useState(false);
+
+  // Scanner visibility state
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   const rootCategories = categories.filter((c) => !c.parentId);
   const subCategories = selectedParentId
     ? categories.filter((c) => c.parentId === selectedParentId)
     : [];
+
+  // Handle scanned barcode result: set OEM and try to auto-fetch product details
+  const handleBarCodeScanned = async (scannedData: string) => {
+    setOemNumber(scannedData);
+    setLoadingBarcode(true);
+
+    try {
+      const productInfo = await fetchProductByBarcode(scannedData);
+      if (productInfo) {
+        if (productInfo.title && !title) setTitle(productInfo.title);
+        if (productInfo.imageUrl && !imageUrl)
+          setImageUrl(productInfo.imageUrl);
+        if (productInfo.storeName && !storeName)
+          setStoreName(productInfo.storeName);
+
+        Alert.alert(
+          t("successTitle") || "Успешно",
+          t("barcodeFoundAlert") ||
+            "Товар найден в базе по штрих-коду и данные заполнены!",
+        );
+      } else {
+        // More informative alert including the scanned code value
+        const alertTitle = t("infoTitle") || "Штрих-код сохранен";
+        const alertMessage = (
+          t("barcodeNotFoundDetailed") ||
+          "Штрих-код «{code}» записан в артикул.\n\nТовар не найден в публичной базе. Вы можете заполнить название вручную или воспользоваться кнопкой «Заполнить данные из ссылки»."
+        ).replace("{code}", scannedData);
+
+        Alert.alert(alertTitle, alertMessage);
+      }
+    } catch (error) {
+      console.error("Barcode lookup error:", error);
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        t("barcodeErrorAlert") ||
+          "Не удалось проверить штрих-код в базе, но он сохранен в артикул.",
+      );
+    } finally {
+      setLoadingBarcode(false);
+    }
+  };
 
   const handleAutoFetch = async () => {
     if (!link) {
@@ -115,7 +162,7 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           {t("addNewItem") || "Добавить в каталог"}
         </Text>
 
-        {/* Ссылка и кнопка автозаполнения */}
+        {/* Link and Auto-fetch button */}
         <TextInput
           style={[
             styles.input,
@@ -154,7 +201,7 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           )}
         </TouchableOpacity>
 
-        {/* Основная форма */}
+        {/* Main Form Fields */}
         <TextInput
           style={[
             styles.input,
@@ -170,21 +217,55 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           onChangeText={setTitle}
         />
 
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.inputBg,
+        {/* OEM Number / Barcode input with embedded scanner button and loading state */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: colors.inputBg,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: 12,
+            paddingRight: 6,
+          }}
+        >
+          <TextInput
+            style={{
+              flex: 1,
+              height: 48,
+              paddingHorizontal: 12,
               color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder={t("codePlaceholder") || "Артикул / Модель / OEM номер"}
-          placeholderTextColor="#888"
-          value={oemNumber}
-          onChangeText={setOemNumber}
-          autoCapitalize="characters"
-        />
+              fontSize: 14,
+            }}
+            placeholder={t("codePlaceholder") || "Артикул / Модель / OEM номер"}
+            placeholderTextColor="#888"
+            value={oemNumber}
+            onChangeText={setOemNumber}
+            autoCapitalize="characters"
+          />
+          {loadingBarcode ? (
+            <ActivityIndicator
+              size="small"
+              color="#20c997"
+              style={{ width: 36, height: 36 }}
+            />
+          ) : (
+            <TouchableOpacity
+              style={{
+                width: 36,
+                height: 36,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: isDarkMode ? "#334155" : "#cbd5e1",
+                borderRadius: 6,
+              }}
+              onPress={() => setScannerVisible(true)}
+            >
+              <Text style={{ fontSize: 16 }}>📷</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <TextInput
           style={[
@@ -338,6 +419,13 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Barcode Scanner Modal Component */}
+      <BarcodeScannerModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScan={handleBarCodeScanned}
+      />
     </ScrollView>
   );
 };

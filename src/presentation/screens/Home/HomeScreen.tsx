@@ -349,24 +349,6 @@ export default function HomeScreen({
         <TouchableOpacity
           style={[
             styles.tabItem,
-            activeTab === "garage" && styles.activeTabItem,
-          ]}
-          onPress={() => setActiveTab("garage")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: colors.subText },
-              activeTab === "garage" && styles.activeTabText,
-            ]}
-          >
-            🚗 {t("garage") || "Гараж"}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabItem,
             activeTab === "categories" && styles.activeTabItem,
           ]}
           onPress={() => setActiveTab("categories")}
@@ -467,7 +449,22 @@ export default function HomeScreen({
             )}
 
             {/* ВАЖНО: передаем пропс onLogout в SettingsScreen */}
-            {activeTab === "settings" && <SettingsScreen onLogout={onLogout} />}
+            {activeTab === "settings" && (
+              <SettingsScreen
+                vehicles={vehicles}
+                vehName={vehName}
+                setVehName={setVehName}
+                vehVin={vehVin}
+                setVehVin={setVehVin}
+                vehPhotoUrl={vehPhotoUrl}
+                setVehPhotoUrl={setVehPhotoUrl}
+                vehOemNotes={vehOemNotes}
+                setVehOemNotes={setVehOemNotes}
+                onAddVehicle={handleAddVehicle}
+                onEditVehicle={(veh) => setEditingVehicle(veh)}
+                onLogout={onLogout}
+              />
+            )}
           </>
         )}
       </View>

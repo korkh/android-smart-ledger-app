@@ -107,6 +107,12 @@ const resources = {
       sortPriceAsc: "Price (Low to High)",
       sortPriceDesc: "Price (High to Low)",
       openDetailsBtn: "Details",
+      infoTitle: "Information",
+      barcodeFoundAlert: "Product found by barcode and details filled!",
+      barcodeNotFoundDetailed:
+        "Barcode saved to article. Product not found in database — you can fill details manually or via link.",
+      barcodeErrorAlert:
+        "Failed to check barcode in database, but it was saved to the article.",
     },
   },
   no: {
@@ -208,6 +214,12 @@ const resources = {
       sortPriceAsc: "Pris (Lav til Høy)",
       sortPriceDesc: "Pris (Høy til Lav)",
       openDetailsBtn: "Detaljer",
+      infoTitle: "Informatjon",
+      barcodeFoundAlert: "Product found by barcode and details filled!",
+      barcodeNotFoundDetailed:
+        "Barcode saved to article. Product not found in database — you can fill details manually or via link.",
+      barcodeErrorAlert:
+        "Failed to check barcode in database, but it was saved to the article.",
     },
   },
   ru: {
@@ -310,6 +322,13 @@ const resources = {
       sortPriceAsc: "Цена (по возрастанию)",
       sortPriceDesc: "Цена (по убыванию)",
       openDetailsBtn: "Детали",
+      infoTitle: "Информация",
+      barcodeFoundAlert:
+        "Товар найден в базе по штрих-коду и данные заполнены!",
+      barcodeNotFoundDetailed:
+        "Штрих-код записан в артикул. Товар не найден в базе — вы можете заполнить данные вручную или через ссылку.",
+      barcodeErrorAlert:
+        "Не удалось проверить штрих-код в базе, но он сохранен в артикул.",
     },
   },
 };
