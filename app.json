@@ -1,24 +1,25 @@
 {
   "expo": {
-    "name": "HomeInventory",
-    "slug": "HomeInventory",
+    "name": "Smart Ledger",
+    "slug": "smart-ledger",
     "version": "1.0.0",
-    "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
     },
     "android": {
+      "package": "com.korkh.smartledger",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0F172A"
       }
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "extra": {
+      "eas": {
+        "projectId": "1c215ee4-51ca-4430-88ed-31dc62a2da30"
+      }
     }
   }
 }
