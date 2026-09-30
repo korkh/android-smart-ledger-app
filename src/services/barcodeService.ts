@@ -10,23 +10,37 @@ export const fetchProductByBarcode = async (
   barcode: string,
 ): Promise<BarcodeProductInfo | null> => {
   try {
-    // 1. Try fetching from Norwegian Matinfo / Open Food Facts Norway registry
-    // Matinfo and Norwegian retail databases often sync with global EAN pools via GS1 & Open Food Facts NO
-    const noResponse = await fetch(
-      `https://no.openfoodfacts.org/api/v0/product/${barcode}.json`,
+    // 1. Try fetching from UPCitemdb (Free tier for general non-food goods, electronics, tools, etc.)
+    const upcResponse = await fetch(
+      `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`,
     );
-    const noData = await noResponse.json();
+    const upcData = await upcResponse.json();
 
-    if (noData.status === 1 && noData.product) {
-      const product = noData.product;
+    if (upcData.code === "OK" && upcData.items && upcData.items.length > 0) {
+      const item = upcData.items[0];
       return {
-        title: product.product_name || product.brands || undefined,
-        imageUrl: product.image_url || undefined,
-        storeName: product.stores || "Norwegian Retailer",
+        title: item.title || item.description || undefined,
+        imageUrl:
+          item.images && item.images.length > 0 ? item.images[0] : undefined,
+        storeName: item.higher_category || item.brand || undefined,
       };
     }
 
-    // 2. Fallback to global Open Food Facts database if not found locally in Norway registry
+    // 2. Fallback to Open Food Facts (Lithuania/Norway/World) if it's grocery/food items
+    const ltResponse = await fetch(
+      `https://lt.openfoodfacts.org/api/v0/product/${barcode}.json`,
+    );
+    const ltData = await ltResponse.json();
+
+    if (ltData.status === 1 && ltData.product) {
+      const product = ltData.product;
+      return {
+        title: product.product_name || product.brands || undefined,
+        imageUrl: product.image_url || undefined,
+        storeName: product.stores || "Lithuanian Retailer",
+      };
+    }
+
     const globalResponse = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
     );
@@ -44,7 +58,7 @@ export const fetchProductByBarcode = async (
     return null;
   } catch (error) {
     console.error(
-      "Error fetching product by barcode from multi-sources:",
+      "Error fetching product by barcode from universal sources:",
       error,
     );
     return null;
