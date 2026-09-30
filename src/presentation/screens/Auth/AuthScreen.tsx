@@ -3,10 +3,12 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
 } from "react-native";
 import { useTheme } from "../../../context/ThemeContext";
 import { loginUser, registerUser } from "../../../services/authService";
@@ -23,7 +25,8 @@ export default function AuthScreen(): React.JSX.Element {
 
   // Submit authentication form
   const handleAuth = async (): Promise<void> => {
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
       Alert.alert(
         t("errorTitle") || "Ошибка",
         t("fillAllFields") || "Пожалуйста, заполните все поля",
@@ -31,12 +34,21 @@ export default function AuthScreen(): React.JSX.Element {
       return;
     }
 
+    if (!isLogin && password.length < 6) {
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        t("passwordLengthError") ||
+          "Пароль должен содержать не менее 6 символов",
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       if (isLogin) {
-        await loginUser(email, password);
+        await loginUser(trimmedEmail, password);
       } else {
-        await registerUser(email, password);
+        await registerUser(trimmedEmail, password);
         Alert.alert(
           t("successTitle") || "Успех",
           t("accountCreated") || "Аккаунт успешно создан!",
@@ -50,66 +62,83 @@ export default function AuthScreen(): React.JSX.Element {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>
-        {isLogin ? t("loginTitle") : t("registerTitle")}
-      </Text>
-
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: colors.background },
         ]}
-        placeholder={t("emailPlaceholder")}
-        placeholderTextColor="#888"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
-        ]}
-        placeholder={t("passwordPlaceholder")}
-        placeholderTextColor="#888"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleAuth}
-        disabled={loading}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>
-            {isLogin ? t("loginBtn") : t("registerBtn")}
-          </Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={() => setIsLogin(!isLogin)}
-        style={styles.switchBtn}
-      >
-        <Text style={[styles.switchBtnText, { color: colors.subText }]}>
-          {isLogin ? t("noAccount") : t("hasAccount")}
+        <Text style={[styles.title, { color: colors.text }]}>
+          {isLogin ? t("loginTitle") : t("registerTitle")}
         </Text>
-      </TouchableOpacity>
-    </View>
+
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
+          placeholder={t("emailPlaceholder") || "Email"}
+          placeholderTextColor="#888"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+        />
+
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
+          placeholder={t("passwordPlaceholder") || "Пароль"}
+          placeholderTextColor="#888"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="password"
+        />
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleAuth}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>
+              {isLogin ? t("loginBtn") : t("registerBtn")}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            setIsLogin(!isLogin);
+            setEmail(""); // Очищаем email при переключении
+            setPassword("");
+          }}
+          style={styles.switchBtn}
+        >
+          <Text style={[styles.switchBtnText, { color: colors.subText }]}>
+            {isLogin ? t("noAccount") : t("hasAccount")}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

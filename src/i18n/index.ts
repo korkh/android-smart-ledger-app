@@ -113,6 +113,16 @@ const resources = {
         "Barcode saved to article. Product not found in database — you can fill details manually or via link.",
       barcodeErrorAlert:
         "Failed to check barcode in database, but it was saved to the article.",
+      noCategoriesYet: "No categories yet. Create your first one below:",
+      newCategoryPlaceholder: "+ New category",
+      newSubcategoryPlaceholder: "+ New subcategory",
+      addBtn: "Add",
+      deleteAccount: "Delete account & data",
+      deleteAccountTitle: "Delete Account",
+      deleteAccountConfirm:
+        "Are you sure you want to delete your account and all associated local data? This action is irreversible.",
+      accountDeletedMessage:
+        "Your account and data have been successfully deleted.",
     },
   },
   no: {
@@ -220,6 +230,15 @@ const resources = {
         "Barcode saved to article. Product not found in database — you can fill details manually or via link.",
       barcodeErrorAlert:
         "Failed to check barcode in database, but it was saved to the article.",
+      noCategoriesYet: "Ingen kategorier ennå. Opprett din første nedenfor:",
+      newCategoryPlaceholder: "+ Ny kategori",
+      newSubcategoryPlaceholder: "+ Ny underkategori",
+      addBtn: "Legg til",
+      deleteAccount: "Slett konto og data",
+      deleteAccountTitle: "Slett konto",
+      deleteAccountConfirm:
+        "Er du sikker på at du vil slette kontoen din og all tilhørende lokal data? Denne handlingen kan ikke angres.",
+      accountDeletedMessage: "Kontoen din og dataene er slettet.",
     },
   },
   ru: {
@@ -329,6 +348,15 @@ const resources = {
         "Штрих-код записан в артикул. Товар не найден в базе — вы можете заполнить данные вручную или через ссылку.",
       barcodeErrorAlert:
         "Не удалось проверить штрих-код в базе, но он сохранен в артикул.",
+      noCategoriesYet: "Категорий пока нет. Создайте первую ниже:",
+      newCategoryPlaceholder: "+ Новая категория",
+      newSubcategoryPlaceholder: "+ Новая подкатегория",
+      addBtn: "Добавить",
+      deleteAccount: "Удалить аккаунт и данные",
+      deleteAccountTitle: "Удаление аккаунта",
+      deleteAccountConfirm:
+        "Вы уверены, что хотите удалить свой аккаунт и все связанные локальные данные? Это действие необратимо.",
+      accountDeletedMessage: "Ваш аккаунт и данные были успешно удалены.",
     },
   },
 };

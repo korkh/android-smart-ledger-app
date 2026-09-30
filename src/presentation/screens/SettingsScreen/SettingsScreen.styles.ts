@@ -35,4 +35,18 @@ export const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 15,
   },
+  deleteAccountBtn: {
+    backgroundColor: "#b71c1c",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#d32f2f",
+  },
+  deleteAccountText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
 });

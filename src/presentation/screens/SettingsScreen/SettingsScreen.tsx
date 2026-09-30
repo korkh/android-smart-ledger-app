@@ -1,9 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  ScrollView,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useTheme } from "../../../context/ThemeContext";
 import { Vehicle } from "../../../domain/Vehicle";
+import { deleteUserAccount } from "../../../services/authService";
 import { GarageTab } from "../Home/components/GarageTab";
 import { styles } from "./SettingsScreen.styles";
 
@@ -47,6 +55,41 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     await i18n.changeLanguage(lang);
     await AsyncStorage.setItem("user_language", lang);
     setCurrentLang(lang);
+  };
+
+  // Handle Account and Data Deletion
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t("deleteAccountTitle") || "Удаление аккаунта",
+      t("deleteAccountConfirm") ||
+        "Вы уверены, что хотите удалить свой аккаунт и все связанные локальные данные? Это действие необратимо.",
+      [
+        { text: t("cancel") || "Отмена", style: "cancel" },
+        {
+          text: t("delete") || "Удалить",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // 1. Delete user from Firebase Auth
+              await deleteUserAccount();
+              // 2. Clear local storage data
+              await AsyncStorage.clear();
+              Alert.alert(
+                t("successTitle") || "Успех",
+                t("accountDeletedMessage") ||
+                  "Ваш аккаунт и данные были успешно удалены.",
+              );
+            } catch (error: any) {
+              Alert.alert(
+                t("errorTitle") || "Ошибка",
+                error.message ||
+                  "Не удалось удалить аккаунт. Возможно, требуется повторный вход.",
+              );
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -156,6 +199,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* Delete Account Button */}
+        <TouchableOpacity
+          style={styles.deleteAccountBtn}
+          onPress={handleDeleteAccount}
+        >
+          <Text style={styles.deleteAccountText}>
+            ⚠️ {t("deleteAccount") || "Удалить аккаунт и данные"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

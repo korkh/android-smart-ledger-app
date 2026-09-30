@@ -40,6 +40,11 @@ interface AddItemTabProps {
   setNotes: (value: string) => void;
   submitting: boolean;
   onAddItem: () => void;
+  // Callback to create a new category directly from AddItemTab
+  onCreateCategory?: (
+    name: string,
+    parentId?: string | null,
+  ) => Promise<string | void>;
 }
 
 export const AddItemTab: React.FC<AddItemTabProps> = ({
@@ -66,6 +71,7 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
   setNotes,
   submitting,
   onAddItem,
+  onCreateCategory,
 }) => {
   const { t } = useTranslation();
   const { colors, isDarkMode } = useTheme();
@@ -75,12 +81,15 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
   // Scanner visibility state
   const [scannerVisible, setScannerVisible] = useState(false);
 
+  // State for quick inline category creation when list is empty or needed
+  const [quickCatName, setQuickCatName] = useState("");
+  const [creatingCat, setCreatingCat] = useState(false);
+
   const rootCategories = categories.filter((c) => !c.parentId);
   const subCategories = selectedParentId
     ? categories.filter((c) => c.parentId === selectedParentId)
     : [];
 
-  // Handle scanned barcode result: set OEM and try to auto-fetch product details
   const handleBarCodeScanned = async (scannedData: string) => {
     setOemNumber(scannedData);
     setLoadingBarcode(true);
@@ -100,11 +109,10 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
             "Товар найден в базе по штрих-коду и данные заполнены!",
         );
       } else {
-        // More informative alert including the scanned code value
         const alertTitle = t("infoTitle") || "Штрих-код сохранен";
         const alertMessage = (
           t("barcodeNotFoundDetailed") ||
-          "Штрих-код «{code}» записан в артикул.\n\nТовар не найден в публичной базе. Вы можете заполнить название вручную или воспользоваться кнопкой «Заполнить данные из ссылки»."
+          "Штрих-код «{code}» записан в артикул.\n\nТовар не найден в публичной базе."
         ).replace("{code}", scannedData);
 
         Alert.alert(alertTitle, alertMessage);
@@ -152,6 +160,34 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
       );
     } finally {
       setLoadingMeta(false);
+    }
+  };
+
+  // Quick category creation handler
+  const handleQuickCreateCategory = async () => {
+    if (!quickCatName.trim() || !onCreateCategory) return;
+
+    setCreatingCat(true);
+    try {
+      const newId = await onCreateCategory(
+        quickCatName.trim(),
+        selectedParentId,
+      );
+      setQuickCatName("");
+      if (newId && typeof newId === "string") {
+        if (!selectedParentId) {
+          setSelectedParentId(newId);
+        } else {
+          setSelectedSubcategoryId(newId);
+        }
+      }
+    } catch (error: any) {
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        error.message || "Не удалось создать категорию",
+      );
+    } finally {
+      setCreatingCat(false);
     }
   };
 
@@ -217,7 +253,7 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           onChangeText={setTitle}
         />
 
-        {/* OEM Number / Barcode input with embedded scanner button and loading state */}
+        {/* OEM Number / Barcode input */}
         <View
           style={{
             flexDirection: "row",
@@ -282,34 +318,95 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           onChangeText={setStoreName}
         />
 
+        {/* Category Selection & Quick Creation */}
         <Text style={{ fontSize: 13, color: colors.subText, marginBottom: 6 }}>
           {t("categoryLabel") || "Категория:"}
         </Text>
-        <View style={styles.categoriesContainer}>
-          {rootCategories.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[
-                styles.categoryChip,
-                { backgroundColor: colors.inputBg },
-                selectedParentId === cat.id && styles.categoryChipSelected,
-              ]}
-              onPress={() => {
-                setSelectedParentId(cat.id || null);
-                setSelectedSubcategoryId(null);
-              }}
-            >
-              <Text
+
+        {rootCategories.length > 0 ? (
+          <View style={styles.categoriesContainer}>
+            {rootCategories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
                 style={[
-                  styles.categoryText,
-                  { color: colors.text },
-                  selectedParentId === cat.id && styles.categoryTextSelected,
+                  styles.categoryChip,
+                  { backgroundColor: colors.inputBg },
+                  selectedParentId === cat.id && styles.categoryChipSelected,
                 ]}
+                onPress={() => {
+                  setSelectedParentId(cat.id || null);
+                  setSelectedSubcategoryId(null);
+                }}
               >
-                {cat.name}
+                <Text
+                  style={[
+                    styles.categoryText,
+                    { color: colors.text },
+                    selectedParentId === cat.id && styles.categoryTextSelected,
+                  ]}
+                >
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <Text
+            style={{
+              fontSize: 12,
+              color: colors.subText,
+              marginBottom: 8,
+              fontStyle: "italic",
+            }}
+          >
+            {t("noCategoriesYet") ||
+              "Категорий пока нет. Создайте первую ниже:"}
+          </Text>
+        )}
+
+        {/* Quick Add Category Input directly in AddItemTab */}
+        <View style={{ flexDirection: "row", marginBottom: 16, gap: 8 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                marginBottom: 0,
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.border,
+                height: 42,
+              },
+            ]}
+            placeholder={
+              selectedParentId
+                ? t("newSubcategoryPlaceholder") || "+ Новая подкатегория"
+                : t("newCategoryPlaceholder") || "+ Новая категория"
+            }
+            placeholderTextColor="#888"
+            value={quickCatName}
+            onChangeText={setQuickCatName}
+          />
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#20c997",
+              justifyContent: "center",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              height: 42,
+            }}
+            onPress={handleQuickCreateCategory}
+            disabled={creatingCat || !quickCatName.trim()}
+          >
+            {creatingCat ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
+                {t("addBtn") || "Добавить"}
               </Text>
-            </TouchableOpacity>
-          ))}
+            )}
+          </TouchableOpacity>
         </View>
 
         {subCategories.length > 0 && (

@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
@@ -23,4 +24,13 @@ export const logoutUser = async (): Promise<void> => {
   await signOut(auth);
 };
 
-export default { loginUser, registerUser, logoutUser };
+// Deletes current user account
+export const deleteUserAccount = async (): Promise<void> => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+  await deleteUser(user);
+};
+
+export default { loginUser, registerUser, logoutUser, deleteUserAccount };
