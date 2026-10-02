@@ -2,7 +2,7 @@
   "expo": {
     "name": "Smart Ledger",
     "slug": "smart-ledger",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/icon.png",
@@ -16,7 +16,7 @@
         "backgroundColor": "#0F172A"
       },
       "permissions": ["CAMERA"],
-      "versionCode": 2
+      "versionCode": 3
     },
     "plugins": [
       [
