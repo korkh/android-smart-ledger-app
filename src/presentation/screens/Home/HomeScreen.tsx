@@ -1,3 +1,5 @@
+// All comments in code are in English as per project rules
+
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,7 +12,9 @@ import {
 import { useTheme } from "../../../context/ThemeContext";
 
 import { Category } from "../../../domain/Category";
+import { FamilyMember } from "../../../domain/FamilyMember";
 import { InventoryItem } from "../../../domain/InventoryItem";
+import { Room } from "../../../domain/Room";
 import { User } from "../../../domain/User";
 import { Vehicle } from "../../../domain/Vehicle";
 import {
@@ -20,11 +24,21 @@ import {
   fetchUserCategories,
 } from "../../../services/categoriesService";
 import {
+  addFamilyMember,
+  deleteFamilyMember,
+  fetchUserFamilyMembers,
+} from "../../../services/familyService";
+import {
   addInventoryItem,
   deleteInventoryItem,
   fetchUserItems,
   updateInventoryItem,
 } from "../../../services/itemsService";
+import {
+  addRoom,
+  deleteRoom,
+  fetchUserRooms,
+} from "../../../services/roomsService";
 import {
   addVehicle,
   fetchUserVehicles,
@@ -34,13 +48,11 @@ import {
 import { SettingsScreen } from "../SettingsScreen/SettingsScreen";
 import { AddItemTab } from "./components/AddItemTab";
 import { CatalogTab } from "./components/CatalogTab";
-import { CategoriesTab } from "./components/CategoriesTab";
 import { EditItemModal } from "./components/EditItemModal";
 import { EditVehicleModal } from "./components/EditVehicleModal";
-import { GarageTab } from "./components/GarageTab";
 import { styles } from "./HomeScreen.styles";
 
-type TabType = "catalog" | "add" | "garage" | "categories" | "settings";
+type TabType = "catalog" | "add" | "settings";
 
 interface HomeScreenProps {
   user: User;
@@ -58,6 +70,8 @@ export default function HomeScreen({
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
@@ -75,6 +89,10 @@ export default function HomeScreen({
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<
     string | null
   >(null);
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<
+    string | null
+  >(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [newCatName, setNewCatName] = useState<string>("");
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
@@ -101,16 +119,25 @@ export default function HomeScreen({
   const loadInitialData = async (): Promise<void> => {
     try {
       setLoading(true);
-      const [fetchedItems, fetchedCategories, fetchedVehicles] =
-        await Promise.all([
-          fetchUserItems(user.uid),
-          fetchUserCategories(user.uid),
-          fetchUserVehicles(user.uid),
-        ]);
+      const [
+        fetchedItems,
+        fetchedCategories,
+        fetchedVehicles,
+        fetchedFamily,
+        fetchedRooms,
+      ] = await Promise.all([
+        fetchUserItems(user.uid),
+        fetchUserCategories(user.uid),
+        fetchUserVehicles(user.uid),
+        fetchUserFamilyMembers(user.uid),
+        fetchUserRooms(user.uid),
+      ]);
 
       setItems(fetchedItems);
       setCategories(fetchedCategories);
       setVehicles(fetchedVehicles);
+      setFamilyMembers(fetchedFamily);
+      setRooms(fetchedRooms);
 
       const roots = fetchedCategories.filter((c) => !c.parentId);
       if (roots.length > 0 && roots[0].id) {
@@ -149,6 +176,8 @@ export default function HomeScreen({
         categoryId: targetCategoryId,
         categoryPath,
         vehicleId: selectedVehicleId || "",
+        familyMemberId: selectedFamilyMemberId || "",
+        roomId: selectedRoomId || "",
         oemNumber: oemNumber.trim(),
         storeName: storeName.trim(),
         price: parseFloat(price) || 0,
@@ -165,6 +194,8 @@ export default function HomeScreen({
       setLink("");
       setImageUrl("");
       setNotes("");
+      setSelectedFamilyMemberId(null);
+      setSelectedRoomId(null);
 
       const updatedItems = await fetchUserItems(user.uid);
       setItems(updatedItems);
@@ -245,6 +276,23 @@ export default function HomeScreen({
     }
   };
 
+  const handleQuickCreateCategory = async (
+    name: string,
+    parentId?: string | null,
+  ): Promise<string | void> => {
+    try {
+      const created = await addCategory(
+        user.uid,
+        name,
+        parentId !== undefined ? parentId : selectedParentId,
+      );
+      setCategories((prev) => [...prev, created]);
+      return created.id;
+    } catch (error: any) {
+      Alert.alert("Ошибка добавления", error.message);
+    }
+  };
+
   const handleDeleteCategory = async (
     catId?: string,
     catName?: string,
@@ -296,17 +344,99 @@ export default function HomeScreen({
     }
   };
 
+  const handleAddFamilyMember = async (member: FamilyMember): Promise<void> => {
+    if (!member.name.trim()) return;
+
+    try {
+      const created = await addFamilyMember({
+        userId: user.uid,
+        name: member.name.trim(),
+        relation: member.relation?.trim() || "",
+        clothingSize: member.clothingSize?.trim() || "",
+        shoeSize: member.shoeSize?.trim() || "",
+        height: member.height?.trim() || "",
+        notes: member.notes?.trim() || "",
+      });
+
+      setFamilyMembers((prev) => [...prev, created]);
+      Alert.alert("Успешно", "Параметры члена семьи сохранены!");
+    } catch (error: any) {
+      Alert.alert("Ошибка сохранения", error.message);
+    }
+  };
+
+  const handleDeleteFamilyMember = async (id: string): Promise<void> => {
+    Alert.alert("Удаление", "Удалить этого члена семьи?", [
+      { text: "Отмена", style: "cancel" },
+      {
+        text: "Удалить",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteFamilyMember(id);
+            setFamilyMembers((prev) => prev.filter((m) => m.id !== id));
+          } catch (error: any) {
+            Alert.alert("Ошибка удаления", error.message);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleAddRoom = async (
+    roomData: Omit<Room, "id" | "userId">,
+  ): Promise<void> => {
+    try {
+      const created = await addRoom({
+        userId: user.uid,
+        ...roomData,
+      });
+      setRooms((prev) => [...prev, created]);
+      Alert.alert("Успешно", "Комната добавлена в организатор!");
+    } catch (error: any) {
+      Alert.alert("Ошибка", error.message);
+    }
+  };
+
+  const handleDeleteRoom = async (id: string): Promise<void> => {
+    Alert.alert("Удаление", "Удалить эту комнату?", [
+      { text: "Отмена", style: "cancel" },
+      {
+        text: "Удалить",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteRoom(id);
+            setRooms((prev) => prev.filter((r) => r.id !== id));
+          } catch (error: any) {
+            Alert.alert("Ошибка удаления", error.message);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
+      {/* Header with Toggle Settings */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Smart Ledger</Text>
-        <TouchableOpacity onPress={() => setActiveTab("settings")}>
-          <Text style={{ fontSize: 22 }}>⚙️</Text>
+        <TouchableOpacity
+          onPress={() => {
+            if (activeTab === "settings") {
+              setActiveTab("catalog");
+            } else {
+              setActiveTab("settings");
+            }
+          }}
+        >
+          <Text style={{ fontSize: 22 }}>
+            {activeTab === "settings" ? "❌" : "⚙️"}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Tabs Bar */}
+      {/* Tabs Bar (Catalog & Add) */}
       <View
         style={[
           styles.tabBar,
@@ -345,24 +475,6 @@ export default function HomeScreen({
             ➕ {t("add") || "Добавить"}
           </Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabItem,
-            activeTab === "categories" && styles.activeTabItem,
-          ]}
-          onPress={() => setActiveTab("categories")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: colors.subText },
-              activeTab === "categories" && styles.activeTabText,
-            ]}
-          >
-            🏷️ {t("categories") || "Категории"}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {/* Active Tab View */}
@@ -399,6 +511,12 @@ export default function HomeScreen({
                 setSelectedParentId={setSelectedParentId}
                 selectedSubcategoryId={selectedSubcategoryId}
                 setSelectedSubcategoryId={setSelectedSubcategoryId}
+                familyMembers={familyMembers}
+                selectedFamilyMemberId={selectedFamilyMemberId}
+                setSelectedFamilyMemberId={setSelectedFamilyMemberId}
+                rooms={rooms}
+                selectedRoomId={selectedRoomId}
+                setSelectedRoomId={setSelectedRoomId}
                 title={title}
                 setTitle={setTitle}
                 oemNumber={oemNumber}
@@ -417,38 +535,9 @@ export default function HomeScreen({
                 setNotes={setNotes}
                 submitting={submitting}
                 onAddItem={handleAddItem}
+                onCreateCategory={handleQuickCreateCategory}
               />
             )}
-
-            {activeTab === "garage" && (
-              <GarageTab
-                vehicles={vehicles}
-                vehName={vehName}
-                setVehName={setVehName}
-                vehVin={vehVin}
-                setVehVin={setVehVin}
-                vehPhotoUrl={vehPhotoUrl}
-                setVehPhotoUrl={setVehPhotoUrl}
-                vehOemNotes={vehOemNotes}
-                setVehOemNotes={setVehOemNotes}
-                onAddVehicle={handleAddVehicle}
-                onEditVehicle={(veh) => setEditingVehicle(veh)}
-              />
-            )}
-
-            {activeTab === "categories" && (
-              <CategoriesTab
-                categories={categories}
-                selectedParentId={selectedParentId}
-                setSelectedParentId={setSelectedParentId}
-                newCatName={newCatName}
-                setNewCatName={setNewCatName}
-                onAddCategory={handleAddCategory}
-                onDeleteCategory={handleDeleteCategory}
-              />
-            )}
-
-            {/* ВАЖНО: передаем пропс onLogout в SettingsScreen */}
             {activeTab === "settings" && (
               <SettingsScreen
                 vehicles={vehicles}
@@ -462,6 +551,19 @@ export default function HomeScreen({
                 setVehOemNotes={setVehOemNotes}
                 onAddVehicle={handleAddVehicle}
                 onEditVehicle={(veh) => setEditingVehicle(veh)}
+                categories={categories}
+                selectedParentId={selectedParentId}
+                setSelectedParentId={setSelectedParentId}
+                newCatName={newCatName}
+                setNewCatName={setNewCatName}
+                onAddCategory={handleAddCategory}
+                onDeleteCategory={handleDeleteCategory}
+                familyMembers={familyMembers}
+                onAddFamilyMember={handleAddFamilyMember}
+                onDeleteFamilyMember={handleDeleteFamilyMember}
+                rooms={rooms}
+                onAddRoom={handleAddRoom}
+                onDeleteRoom={handleDeleteRoom}
                 onLogout={onLogout}
               />
             )}

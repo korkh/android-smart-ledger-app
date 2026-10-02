@@ -4,16 +4,22 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   ScrollView,
+  StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useTheme } from "../../../context/ThemeContext";
+import { Category } from "../../../domain/Category";
+import { FamilyMember } from "../../../domain/FamilyMember";
+import { Room } from "../../../domain/Room";
 import { Vehicle } from "../../../domain/Vehicle";
 import { deleteUserAccount } from "../../../services/authService";
+import { CategoriesTab } from "../Home/components/CategoriesTab";
+import { FamilyTab } from "../Home/components/FamilyTab";
 import { GarageTab } from "../Home/components/GarageTab";
-import { styles } from "./SettingsScreen.styles";
 
 interface SettingsScreenProps {
   vehicles: Vehicle[];
@@ -27,11 +33,28 @@ interface SettingsScreenProps {
   setVehOemNotes: (val: string) => void;
   onAddVehicle: () => void;
   onEditVehicle: (veh: Vehicle) => void;
+
+  categories: Category[];
+  selectedParentId: string | null;
+  setSelectedParentId: (id: string | null) => void;
+  newCatName: string;
+  setNewCatName: (value: string) => void;
+  onAddCategory: () => void;
+  onDeleteCategory: (id?: string, name?: string) => void;
+
+  familyMembers: FamilyMember[];
+  onAddFamilyMember: (member: FamilyMember) => void;
+  onDeleteFamilyMember: (id: string) => void;
+
+  rooms: Room[];
+  onAddRoom: (room: Omit<Room, "id" | "userId">) => void;
+  onDeleteRoom: (id: string) => void;
+
   onLogout?: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
-  vehicles,
+  vehicles = [],
   vehName,
   setVehName,
   vehVin,
@@ -42,14 +65,36 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   setVehOemNotes,
   onAddVehicle,
   onEditVehicle,
+  categories = [],
+  selectedParentId,
+  setSelectedParentId,
+  newCatName,
+  setNewCatName,
+  onAddCategory,
+  onDeleteCategory,
+  familyMembers = [],
+  onAddFamilyMember,
+  onDeleteFamilyMember,
+  rooms = [],
+  onAddRoom,
+  onDeleteRoom,
   onLogout,
 }) => {
   const { t, i18n } = useTranslation();
   const { isDarkMode, toggleTheme, colors } = useTheme();
   const [currentLang, setCurrentLang] = useState(i18n.language);
 
-  // State to toggle Garage section visibility
   const [showGarage, setShowGarage] = useState(false);
+  const [showCategories, setShowCategories] = useState(false);
+  const [showFamily, setShowFamily] = useState(false);
+  const [showRooms, setShowRooms] = useState(false);
+
+  // New Room local state
+  const [roomName, setRoomName] = useState("");
+  const [roomFloor, setRoomFloor] = useState("");
+  const [roomDimensions, setRoomDimensions] = useState("");
+  const [roomWindows, setRoomWindows] = useState("");
+  const [roomDoors, setRoomDoors] = useState("");
 
   const changeLanguage = async (lang: string) => {
     await i18n.changeLanguage(lang);
@@ -57,7 +102,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setCurrentLang(lang);
   };
 
-  // Handle Account and Data Deletion
   const handleDeleteAccount = () => {
     Alert.alert(
       t("deleteAccountTitle") || "Удаление аккаунта",
@@ -70,9 +114,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           style: "destructive",
           onPress: async () => {
             try {
-              // 1. Delete user from Firebase Auth
               await deleteUserAccount();
-              // 2. Clear local storage data
               await AsyncStorage.clear();
               Alert.alert(
                 t("successTitle") || "Успех",
@@ -139,7 +181,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <Switch value={isDarkMode} onValueChange={toggleTheme} />
         </View>
 
-        {/* Garage Accordion Button */}
+        {/* Garage Accordion */}
         <View
           style={{
             marginTop: 10,
@@ -149,16 +191,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           }}
         >
           <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              backgroundColor: colors.inputBg,
-              padding: 14,
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
+            style={styles.accordionHeaderButton}
             onPress={() => setShowGarage(!showGarage)}
           >
             <Text
@@ -171,7 +204,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </Text>
           </TouchableOpacity>
 
-          {/* Expanded Garage Content */}
           {showGarage && (
             <View style={{ marginTop: 12 }}>
               <GarageTab
@@ -187,6 +219,326 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 onAddVehicle={onAddVehicle}
                 onEditVehicle={onEditVehicle}
               />
+            </View>
+          )}
+        </View>
+
+        {/* Categories Accordion */}
+        <View
+          style={{
+            marginTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            paddingTop: 16,
+          }}
+        >
+          <TouchableOpacity
+            style={styles.accordionHeaderButton}
+            onPress={() => setShowCategories(!showCategories)}
+          >
+            <Text
+              style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
+            >
+              📁 {t("categories") || "Категории"} ({categories.length})
+            </Text>
+            <Text style={{ fontSize: 16, color: colors.text }}>
+              {showCategories ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+
+          {showCategories && (
+            <View style={{ marginTop: 12 }}>
+              <CategoriesTab
+                categories={categories}
+                selectedParentId={selectedParentId}
+                setSelectedParentId={setSelectedParentId}
+                newCatName={newCatName}
+                setNewCatName={setNewCatName}
+                onAddCategory={onAddCategory}
+                onDeleteCategory={onDeleteCategory}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Family Sizes Accordion */}
+        <View
+          style={{
+            marginTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            paddingTop: 16,
+          }}
+        >
+          <TouchableOpacity
+            style={styles.accordionHeaderButton}
+            onPress={() => setShowFamily(!showFamily)}
+          >
+            <Text
+              style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
+            >
+              👥 {t("familySizesTitle") || "Размеры одежды семьи"} (
+              {familyMembers.length})
+            </Text>
+            <Text style={{ fontSize: 16, color: colors.text }}>
+              {showFamily ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+
+          {showFamily && (
+            <View style={{ marginTop: 12 }}>
+              <FamilyTab
+                members={familyMembers}
+                onAddMember={onAddFamilyMember}
+                onDeleteMember={onDeleteFamilyMember}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Home Organizer Accordion */}
+        <View
+          style={{
+            marginTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            paddingTop: 16,
+          }}
+        >
+          <TouchableOpacity
+            style={styles.accordionHeaderButton}
+            onPress={() => setShowRooms(!showRooms)}
+          >
+            <Text
+              style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
+            >
+              🏠 Организатор дома (Комнаты и проемы) ({rooms.length})
+            </Text>
+            <Text style={{ fontSize: 16, color: colors.text }}>
+              {showRooms ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+
+          {showRooms && (
+            <View style={{ marginTop: 12 }}>
+              {/* Existing Rooms List Container */}
+              {rooms.length > 0 && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: colors.subText,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Существующие помещения:
+                  </Text>
+                  {rooms.map((room) => (
+                    <View
+                      key={room.id}
+                      style={{
+                        backgroundColor: colors.inputBg,
+                        padding: 12,
+                        borderRadius: 8,
+                        marginBottom: 8,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontWeight: "bold",
+                            color: colors.text,
+                            fontSize: 14,
+                          }}
+                        >
+                          📍 {room.name} {room.floor ? `(${room.floor})` : ""}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => onDeleteRoom(room.id!)}
+                        >
+                          <Text
+                            style={{
+                              color: "#ff4d4d",
+                              fontWeight: "bold",
+                              fontSize: 16,
+                            }}
+                          >
+                            ✕
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {room.dimensions ? (
+                        <Text
+                          style={{
+                            color: colors.subText,
+                            fontSize: 12,
+                            marginTop: 4,
+                          }}
+                        >
+                          📏 Размер: {room.dimensions}
+                        </Text>
+                      ) : null}
+                      {room.windowsSize ? (
+                        <Text
+                          style={{
+                            color: colors.subText,
+                            fontSize: 12,
+                            marginTop: 2,
+                          }}
+                        >
+                          🪟 Окна: {room.windowsSize}
+                        </Text>
+                      ) : null}
+                      {room.doorsSize ? (
+                        <Text
+                          style={{
+                            color: colors.subText,
+                            fontSize: 12,
+                            marginTop: 2,
+                          }}
+                        >
+                          🚪 Двери: {room.doorsSize}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Add New Room Form Card */}
+              <View
+                style={{
+                  backgroundColor: colors.background,
+                  padding: 12,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: colors.text,
+                    marginBottom: 10,
+                  }}
+                >
+                  + Добавить новую комнату:
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Название комнаты (напр. Гостиная)"
+                  placeholderTextColor="#888"
+                  value={roomName}
+                  onChangeText={setRoomName}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Этаж (напр. 1 этаж)"
+                  placeholderTextColor="#888"
+                  value={roomFloor}
+                  onChangeText={setRoomFloor}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Размер комнаты (напр. 4x5 м, высота 2.6м)"
+                  placeholderTextColor="#888"
+                  value={roomDimensions}
+                  onChangeText={setRoomDimensions}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Размеры окон (напр. 140x160 см)"
+                  placeholderTextColor="#888"
+                  value={roomWindows}
+                  onChangeText={setRoomWindows}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Размеры дверей (напр. 90x200 см)"
+                  placeholderTextColor="#888"
+                  value={roomDoors}
+                  onChangeText={setRoomDoors}
+                />
+
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: "#20c997",
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    alignItems: "center",
+                    marginTop: 4,
+                  }}
+                  onPress={() => {
+                    if (!roomName.trim()) {
+                      Alert.alert("Ошибка", "Введите название комнаты");
+                      return;
+                    }
+                    onAddRoom({
+                      name: roomName.trim(),
+                      floor: roomFloor.trim(),
+                      dimensions: roomDimensions.trim(),
+                      windowsSize: roomWindows.trim(),
+                      doorsSize: roomDoors.trim(),
+                    });
+                    setRoomName("");
+                    setRoomFloor("");
+                    setRoomDimensions("");
+                    setRoomWindows("");
+                    setRoomDoors("");
+                  }}
+                >
+                  <Text
+                    style={{ color: "#fff", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    Сохранить комнату
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -213,3 +565,72 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     </ScrollView>
   );
 };
+
+export const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, borderRadius: 12 },
+  sectionTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
+  label: { fontSize: 14, marginBottom: 8, marginTop: 12 },
+  langContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  langBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  langBtnActive: { backgroundColor: "#007AFF", borderColor: "#007AFF" },
+  langText: { fontSize: 13, fontWeight: "500" },
+  langTextActive: { color: "#fff", fontWeight: "bold" },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  accordionHeaderButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.02)",
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
+  },
+  input: {
+    height: 46,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    fontSize: 14,
+  },
+  logoutBtn: {
+    backgroundColor: "#ffebee",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: "#ffcdd2",
+  },
+  logoutText: {
+    color: "#d32f2f",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+  deleteAccountBtn: {
+    backgroundColor: "#b71c1c",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#d32f2f",
+  },
+  deleteAccountText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+});

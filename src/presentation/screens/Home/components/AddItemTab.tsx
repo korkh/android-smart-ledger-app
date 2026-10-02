@@ -1,9 +1,12 @@
+// All comments in code are in English as per project rules
+
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -11,10 +14,9 @@ import {
 } from "react-native";
 import { useTheme } from "../../../../context/ThemeContext";
 import { Category } from "../../../../domain/Category";
-import { fetchProductByBarcode } from "../../../../services/barcodeService";
-import { fetchLinkMetadata } from "../../../../services/linkMetadataService";
-import { styles } from "../HomeScreen.styles";
-import { BarcodeScannerModal } from "./BarcodeScannerModal";
+import { FamilyMember } from "../../../../domain/FamilyMember";
+import { Room } from "../../../../domain/Room";
+import { fetchLinkMetadata } from "../../../../services/itemsService";
 
 interface AddItemTabProps {
   categories: Category[];
@@ -22,6 +24,15 @@ interface AddItemTabProps {
   setSelectedParentId: (id: string | null) => void;
   selectedSubcategoryId: string | null;
   setSelectedSubcategoryId: (id: string | null) => void;
+
+  familyMembers?: FamilyMember[];
+  selectedFamilyMemberId?: string | null;
+  setSelectedFamilyMemberId?: (id: string | null) => void;
+
+  rooms?: Room[];
+  selectedRoomId?: string | null;
+  setSelectedRoomId?: (id: string | null) => void;
+
   title: string;
   setTitle: (value: string) => void;
   oemNumber: string;
@@ -40,8 +51,7 @@ interface AddItemTabProps {
   setNotes: (value: string) => void;
   submitting: boolean;
   onAddItem: () => void;
-  // Callback to create a new category directly from AddItemTab
-  onCreateCategory?: (
+  onCreateCategory: (
     name: string,
     parentId?: string | null,
   ) => Promise<string | void>;
@@ -53,6 +63,12 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
   setSelectedParentId,
   selectedSubcategoryId,
   setSelectedSubcategoryId,
+  familyMembers = [],
+  selectedFamilyMemberId,
+  setSelectedFamilyMemberId,
+  rooms = [],
+  selectedRoomId,
+  setSelectedRoomId,
   title,
   setTitle,
   oemNumber,
@@ -74,131 +90,79 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
   onCreateCategory,
 }) => {
   const { t } = useTranslation();
-  const { colors, isDarkMode } = useTheme();
-  const [loadingMeta, setLoadingMeta] = useState(false);
-  const [loadingBarcode, setLoadingBarcode] = useState(false);
+  const { colors } = useTheme();
 
-  // Scanner visibility state
-  const [scannerVisible, setScannerVisible] = useState(false);
+  const [fetchingMeta, setFetchingMeta] = useState<boolean>(false);
+  const [newSubCatName, setNewSubCatName] = useState<string>("");
 
-  // State for quick inline category creation when list is empty or needed
-  const [quickCatName, setQuickCatName] = useState("");
-  const [creatingCat, setCreatingCat] = useState(false);
+  // Toggles for collapsible sections
+  const [showSubcatsSection, setShowSubcatsSection] = useState<boolean>(false);
+  const [showFamilySection, setShowFamilySection] = useState<boolean>(false);
+  const [showRoomSection, setShowRoomSection] = useState<boolean>(false);
 
-  const rootCategories = categories.filter((c) => !c.parentId);
-  const subCategories = selectedParentId
-    ? categories.filter((c) => c.parentId === selectedParentId)
-    : [];
+  const parentCategories = categories.filter((c) => !c.parentId);
+  const subcategories = categories.filter(
+    (c) => c.parentId === selectedParentId,
+  );
 
-  const handleBarCodeScanned = async (scannedData: string) => {
-    setOemNumber(scannedData);
-    setLoadingBarcode(true);
+  const selectedParentName =
+    parentCategories.find((c) => c.id === selectedParentId)?.name ||
+    "Не выбрана";
+  const selectedSubcatName =
+    subcategories.find((c) => c.id === selectedSubcategoryId)?.name ||
+    "— Нет —";
+  const selectedFamilyName =
+    familyMembers.find((m) => m.id === selectedFamilyMemberId)?.name ||
+    "— Нет —";
+  const selectedRoomName =
+    rooms.find((r) => r.id === selectedRoomId)?.name || "— Нет —";
 
-    try {
-      const productInfo = await fetchProductByBarcode(scannedData);
-      if (productInfo) {
-        if (productInfo.title && !title) setTitle(productInfo.title);
-        if (productInfo.imageUrl && !imageUrl)
-          setImageUrl(productInfo.imageUrl);
-        if (productInfo.storeName && !storeName)
-          setStoreName(productInfo.storeName);
-
-        Alert.alert(
-          t("successTitle") || "Успешно",
-          t("barcodeFoundAlert") ||
-            "Товар найден в базе по штрих-коду и данные заполнены!",
-        );
-      } else {
-        const alertTitle = t("infoTitle") || "Штрих-код сохранен";
-        const alertMessage = (
-          t("barcodeNotFoundDetailed") ||
-          "Штрих-код «{code}» записан в артикул.\n\nТовар не найден в публичной базе."
-        ).replace("{code}", scannedData);
-
-        Alert.alert(alertTitle, alertMessage);
-      }
-    } catch (error) {
-      console.error("Barcode lookup error:", error);
-      Alert.alert(
-        t("errorTitle") || "Ошибка",
-        t("barcodeErrorAlert") ||
-          "Не удалось проверить штрих-код в базе, но он сохранен в артикул.",
-      );
-    } finally {
-      setLoadingBarcode(false);
-    }
-  };
-
-  const handleAutoFetch = async () => {
-    if (!link) {
-      Alert.alert(
-        t("errorTitle") || "Ошибка",
-        t("enterLinkFirstAlert") || "Сначала вставьте ссылку в поле",
-      );
+  const handleFetchMetadata = async () => {
+    if (!link.trim()) {
+      Alert.alert("Ошибка", "Введите ссылку на товар");
       return;
     }
 
-    setLoadingMeta(true);
+    setFetchingMeta(true);
     try {
-      const data = await fetchLinkMetadata(link);
+      const meta = await fetchLinkMetadata(link.trim());
+      if (meta.title) setTitle(meta.title);
+      if (meta.price) setPrice(meta.price);
+      if (meta.currency) setCurrency(meta.currency);
+      if (meta.imageUrl) setImageUrl(meta.imageUrl);
+      if (meta.storeName) setStoreName(meta.storeName);
 
-      if (data.title) setTitle(data.title);
-      if (data.price) setPrice(data.price);
-      if (data.currency) setCurrency(data.currency);
-      if (data.imageUrl) setImageUrl(data.imageUrl);
-      if (data.storeName) setStoreName(data.storeName);
-
+      Alert.alert("Успешно", "Данные успешно загружены!");
+    } catch (error: any) {
       Alert.alert(
-        t("successTitle") || "Успешно",
-        t("metadataSuccessAlert") ||
-          "Данные товара успешно загружены из ссылки!",
-      );
-    } catch (e) {
-      Alert.alert(
-        t("errorTitle") || "Ошибка",
-        t("metadataErrorAlert") || "Не удалось извлечь данные со страницы",
+        "Ошибка",
+        "Не удалось автоматически загрузить данные по ссылке. Заполните вручную.",
       );
     } finally {
-      setLoadingMeta(false);
+      setFetchingMeta(false);
     }
   };
 
-  // Quick category creation handler
-  const handleQuickCreateCategory = async () => {
-    if (!quickCatName.trim() || !onCreateCategory) return;
-
-    setCreatingCat(true);
-    try {
-      const newId = await onCreateCategory(
-        quickCatName.trim(),
-        selectedParentId,
-      );
-      setQuickCatName("");
-      if (newId && typeof newId === "string") {
-        if (!selectedParentId) {
-          setSelectedParentId(newId);
-        } else {
-          setSelectedSubcategoryId(newId);
-        }
-      }
-    } catch (error: any) {
-      Alert.alert(
-        t("errorTitle") || "Ошибка",
-        error.message || "Не удалось создать категорию",
-      );
-    } finally {
-      setCreatingCat(false);
+  const handleAddSubCategory = async () => {
+    if (!newSubCatName.trim()) return;
+    const createdId = await onCreateCategory(
+      newSubCatName.trim(),
+      selectedParentId,
+    );
+    if (createdId && typeof createdId === "string") {
+      setSelectedSubcategoryId(createdId);
     }
+    setNewSubCatName("");
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent}>
-      <View style={[styles.cardSection, { backgroundColor: colors.card }]}>
+    <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+      <View style={[styles.container, { backgroundColor: colors.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           {t("addNewItem") || "Добавить в каталог"}
         </Text>
 
-        {/* Link and Auto-fetch button */}
+        {/* TOP INPUTS */}
         <TextInput
           style={[
             styles.input,
@@ -208,7 +172,7 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
               borderColor: colors.border,
             },
           ]}
-          placeholder={t("linkPlaceholder") || "Ссылка на интернет-магазин"}
+          placeholder="Ссылка на магазин в интернете"
           placeholderTextColor="#888"
           value={link}
           onChangeText={setLink}
@@ -216,28 +180,19 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
         />
 
         <TouchableOpacity
-          style={{
-            backgroundColor: isDarkMode ? "#122b22" : "#e6fcf5",
-            borderWidth: 1,
-            borderColor: "#20c997",
-            paddingVertical: 10,
-            borderRadius: 8,
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-          onPress={handleAutoFetch}
-          disabled={loadingMeta}
+          style={[styles.fetchBtn, { backgroundColor: "#e8f5e9" }]}
+          onPress={handleFetchMetadata}
+          disabled={fetchingMeta}
         >
-          {loadingMeta ? (
-            <ActivityIndicator color="#0ca678" />
+          {fetchingMeta ? (
+            <ActivityIndicator size="small" color="#2e7d32" />
           ) : (
-            <Text style={{ color: "#20c997", fontWeight: "700", fontSize: 13 }}>
-              {t("autoFetchBtn") || "⚡ Заполнить данные из ссылки"}
+            <Text style={{ color: "#2e7d32", fontWeight: "bold" }}>
+              ⚡ Заполнить данные из ссылки
             </Text>
           )}
         </TouchableOpacity>
 
-        {/* Main Form Fields */}
         <TextInput
           style={[
             styles.input,
@@ -247,61 +202,26 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
               borderColor: colors.border,
             },
           ]}
-          placeholder={t("titlePlaceholder") || "Название"}
+          placeholder="Название (напр., Дрель, Куртка, Масло)"
           placeholderTextColor="#888"
           value={title}
           onChangeText={setTitle}
         />
 
-        {/* OEM Number / Barcode input */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: colors.inputBg,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: colors.border,
-            marginBottom: 12,
-            paddingRight: 6,
-          }}
-        >
-          <TextInput
-            style={{
-              flex: 1,
-              height: 48,
-              paddingHorizontal: 12,
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
               color: colors.text,
-              fontSize: 14,
-            }}
-            placeholder={t("codePlaceholder") || "Артикул / Модель / OEM номер"}
-            placeholderTextColor="#888"
-            value={oemNumber}
-            onChangeText={setOemNumber}
-            autoCapitalize="characters"
-          />
-          {loadingBarcode ? (
-            <ActivityIndicator
-              size="small"
-              color="#20c997"
-              style={{ width: 36, height: 36 }}
-            />
-          ) : (
-            <TouchableOpacity
-              style={{
-                width: 36,
-                height: 36,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: isDarkMode ? "#334155" : "#cbd5e1",
-                borderRadius: 6,
-              }}
-              onPress={() => setScannerVisible(true)}
-            >
-              <Text style={{ fontSize: 16 }}>📷</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              borderColor: colors.border,
+            },
+          ]}
+          placeholder="Артикул / Модель / OEM номер"
+          placeholderTextColor="#888"
+          value={oemNumber}
+          onChangeText={setOemNumber}
+        />
 
         <TextInput
           style={[
@@ -312,159 +232,41 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
               borderColor: colors.border,
             },
           ]}
-          placeholder={t("storePlaceholder") || "Название магазина"}
+          placeholder="Магазин (напр., Biltema, Mekonomen)"
           placeholderTextColor="#888"
           value={storeName}
           onChangeText={setStoreName}
         />
 
-        {/* Category Selection & Quick Creation */}
-        <Text style={{ fontSize: 13, color: colors.subText, marginBottom: 6 }}>
-          {t("categoryLabel") || "Категория:"}
-        </Text>
-
-        {rootCategories.length > 0 ? (
-          <View style={styles.categoriesContainer}>
-            {rootCategories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={[
-                  styles.categoryChip,
-                  { backgroundColor: colors.inputBg },
-                  selectedParentId === cat.id && styles.categoryChipSelected,
-                ]}
-                onPress={() => {
-                  setSelectedParentId(cat.id || null);
-                  setSelectedSubcategoryId(null);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    { color: colors.text },
-                    selectedParentId === cat.id && styles.categoryTextSelected,
-                  ]}
-                >
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <Text
-            style={{
-              fontSize: 12,
-              color: colors.subText,
-              marginBottom: 8,
-              fontStyle: "italic",
-            }}
-          >
-            {t("noCategoriesYet") ||
-              "Категорий пока нет. Создайте первую ниже:"}
-          </Text>
-        )}
-
-        {/* Quick Add Category Input directly in AddItemTab */}
-        <View style={{ flexDirection: "row", marginBottom: 16, gap: 8 }}>
+        {/* Price & Currency */}
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 2,
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholder="Цена"
+            placeholderTextColor="#888"
+            keyboardType="numeric"
+            value={price}
+            onChangeText={setPrice}
+          />
           <TextInput
             style={[
               styles.input,
               {
                 flex: 1,
-                marginBottom: 0,
-                backgroundColor: colors.inputBg,
-                color: colors.text,
-                borderColor: colors.border,
-                height: 42,
-              },
-            ]}
-            placeholder={
-              selectedParentId
-                ? t("newSubcategoryPlaceholder") || "+ Новая подкатегория"
-                : t("newCategoryPlaceholder") || "+ Новая категория"
-            }
-            placeholderTextColor="#888"
-            value={quickCatName}
-            onChangeText={setQuickCatName}
-          />
-          <TouchableOpacity
-            style={{
-              backgroundColor: "#20c997",
-              justifyContent: "center",
-              alignItems: "center",
-              paddingHorizontal: 16,
-              borderRadius: 8,
-              height: 42,
-            }}
-            onPress={handleQuickCreateCategory}
-            disabled={creatingCat || !quickCatName.trim()}
-          >
-            {creatingCat ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
-                {t("addBtn") || "Добавить"}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {subCategories.length > 0 && (
-          <View style={styles.categoriesContainer}>
-            {subCategories.map((sub) => (
-              <TouchableOpacity
-                key={sub.id}
-                style={[
-                  styles.categoryChip,
-                  { backgroundColor: colors.inputBg },
-                  selectedSubcategoryId === sub.id &&
-                    styles.categoryChipSelected,
-                ]}
-                onPress={() => setSelectedSubcategoryId(sub.id || null)}
-              >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    { color: colors.text },
-                    selectedSubcategoryId === sub.id &&
-                      styles.categoryTextSelected,
-                  ]}
-                >
-                  ↳ {sub.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.row}>
-          <TextInput
-            style={[
-              styles.input,
-              styles.halfInput,
-              {
                 backgroundColor: colors.inputBg,
                 color: colors.text,
                 borderColor: colors.border,
               },
             ]}
-            placeholder={t("price") || "Цена"}
-            placeholderTextColor="#888"
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={[
-              styles.input,
-              styles.halfInput,
-              {
-                backgroundColor: colors.inputBg,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder={t("currency") || "Валюта"}
+            placeholder="Валюта"
             placeholderTextColor="#888"
             value={currency}
             onChangeText={setCurrency}
@@ -480,7 +282,7 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
               borderColor: colors.border,
             },
           ]}
-          placeholder={t("imageUrlPlaceholder") || "Ссылка на фото (URL)"}
+          placeholder="Ссылка на фото (URL)"
           placeholderTextColor="#888"
           value={imageUrl}
           onChangeText={setImageUrl}
@@ -491,17 +293,21 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           style={[
             styles.input,
             {
+              height: 70,
+              textAlignVertical: "top",
               backgroundColor: colors.inputBg,
               color: colors.text,
               borderColor: colors.border,
             },
           ]}
-          placeholder={t("notesPlaceholder") || "Заметки, спецификации"}
+          placeholder="Заметки, спецификации, допуски"
           placeholderTextColor="#888"
+          multiline
           value={notes}
           onChangeText={setNotes}
         />
 
+        {/* SUBMIT BUTTON */}
         <TouchableOpacity
           style={styles.submitBtn}
           onPress={onAddItem}
@@ -510,19 +316,460 @@ export const AddItemTab: React.FC<AddItemTabProps> = ({
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitBtnText}>
-              {t("saveBtn") || "Сохранить в каталог"}
-            </Text>
+            <Text style={styles.submitBtnText}>Сохранить в каталог</Text>
           )}
         </TouchableOpacity>
-      </View>
 
-      {/* Barcode Scanner Modal Component */}
-      <BarcodeScannerModal
-        visible={scannerVisible}
-        onClose={() => setScannerVisible(false)}
-        onScan={handleBarCodeScanned}
-      />
+        {/* STYLISH BOTTOM CARD FOR OPTIONAL BINDINGS */}
+        <View
+          style={[
+            styles.extraCard,
+            {
+              backgroundColor: colors.inputBg,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={styles.extraCardHeader}>
+            <Text
+              style={{ color: colors.text, fontWeight: "bold", fontSize: 14 }}
+            >
+              📌 Дополнительные привязки
+            </Text>
+          </View>
+
+          {/* Parent Categories */}
+          <View style={{ marginBottom: 12 }}>
+            <Text style={[styles.label, { color: colors.subText }]}>
+              Категория:{" "}
+              <Text style={{ color: colors.text, fontWeight: "bold" }}>
+                {selectedParentName}
+              </Text>
+            </Text>
+            <View style={styles.categoriesContainer}>
+              {parentCategories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                    selectedParentId === cat.id && styles.categoryChipSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedParentId(cat.id || null);
+                    setSelectedSubcategoryId(null);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      { color: colors.text },
+                      selectedParentId === cat.id &&
+                        styles.categoryTextSelected,
+                    ]}
+                  >
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* SUBCATEGORIES ACCORDION */}
+          <View style={{ marginBottom: 10 }}>
+            <TouchableOpacity
+              style={[
+                styles.accordionToggle,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => setShowSubcatsSection(!showSubcatsSection)}
+            >
+              <Text style={{ color: colors.text, fontSize: 13 }}>
+                📁 Подкатегория:{" "}
+                <Text style={{ fontWeight: "bold" }}>{selectedSubcatName}</Text>
+              </Text>
+              <Text style={{ color: colors.subText, fontSize: 12 }}>
+                {showSubcatsSection ? "▲ Скрыть" : "▼ Изменить"}
+              </Text>
+            </TouchableOpacity>
+
+            {showSubcatsSection && (
+              <View
+                style={[
+                  styles.accordionContent,
+                  { borderColor: colors.border },
+                ]}
+              >
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        marginBottom: 0,
+                        backgroundColor: colors.card,
+                        color: colors.text,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    placeholder="+ Новая подкатегория"
+                    placeholderTextColor="#888"
+                    value={newSubCatName}
+                    onChangeText={setNewSubCatName}
+                  />
+                  <TouchableOpacity
+                    style={styles.addSubCategoryBtn}
+                    onPress={handleAddSubCategory}
+                  >
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontWeight: "bold",
+                        fontSize: 12,
+                      }}
+                    >
+                      Добавить
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {subcategories.length > 0 ? (
+                  <View style={styles.categoriesContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                        selectedSubcategoryId === null &&
+                          styles.categoryChipSelected,
+                      ]}
+                      onPress={() => setSelectedSubcategoryId(null)}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryText,
+                          { color: colors.text },
+                          selectedSubcategoryId === null &&
+                            styles.categoryTextSelected,
+                        ]}
+                      >
+                        — Нет —
+                      </Text>
+                    </TouchableOpacity>
+
+                    {subcategories.map((sub) => (
+                      <TouchableOpacity
+                        key={sub.id}
+                        style={[
+                          styles.categoryChip,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
+                          selectedSubcategoryId === sub.id &&
+                            styles.categoryChipSelected,
+                        ]}
+                        onPress={() => setSelectedSubcategoryId(sub.id || null)}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryText,
+                            { color: colors.text },
+                            selectedSubcategoryId === sub.id &&
+                              styles.categoryTextSelected,
+                          ]}
+                        >
+                          ↳ {sub.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <Text
+                    style={{
+                      color: colors.subText,
+                      fontSize: 12,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Нет подкатегорий. Создайте первую выше ↑
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* FAMILY MEMBER ACCORDION */}
+          {familyMembers.length > 0 && (
+            <View style={{ marginBottom: 10 }}>
+              <TouchableOpacity
+                style={[
+                  styles.accordionToggle,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+                onPress={() => setShowFamilySection(!showFamilySection)}
+              >
+                <Text style={{ color: colors.text, fontSize: 13 }}>
+                  👥 Член семьи:{" "}
+                  <Text style={{ fontWeight: "bold" }}>
+                    {selectedFamilyName}
+                  </Text>
+                </Text>
+                <Text style={{ color: colors.subText, fontSize: 12 }}>
+                  {showFamilySection ? "▲ Скрыть" : "▼ Изменить"}
+                </Text>
+              </TouchableOpacity>
+
+              {showFamilySection && (
+                <View
+                  style={[
+                    styles.accordionContent,
+                    { borderColor: colors.border },
+                  ]}
+                >
+                  <View style={styles.categoriesContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                        selectedFamilyMemberId === null &&
+                          styles.categoryChipSelected,
+                      ]}
+                      onPress={() =>
+                        setSelectedFamilyMemberId &&
+                        setSelectedFamilyMemberId(null)
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.categoryText,
+                          { color: colors.text },
+                          selectedFamilyMemberId === null &&
+                            styles.categoryTextSelected,
+                        ]}
+                      >
+                        — Нет —
+                      </Text>
+                    </TouchableOpacity>
+
+                    {familyMembers.map((member) => (
+                      <TouchableOpacity
+                        key={member.id}
+                        style={[
+                          styles.categoryChip,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
+                          selectedFamilyMemberId === member.id &&
+                            styles.categoryChipSelected,
+                        ]}
+                        onPress={() =>
+                          setSelectedFamilyMemberId &&
+                          setSelectedFamilyMemberId(member.id || null)
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.categoryText,
+                            { color: colors.text },
+                            selectedFamilyMemberId === member.id &&
+                              styles.categoryTextSelected,
+                          ]}
+                        >
+                          👤 {member.name}{" "}
+                          {member.clothingSize
+                            ? `(${member.clothingSize})`
+                            : ""}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ROOM ACCORDION (Home Organizer) */}
+          {rooms.length > 0 && (
+            <View style={{ marginBottom: 4 }}>
+              <TouchableOpacity
+                style={[
+                  styles.accordionToggle,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+                onPress={() => setShowRoomSection(!showRoomSection)}
+              >
+                <Text style={{ color: colors.text, fontSize: 13 }}>
+                  🏠 Комната:{" "}
+                  <Text style={{ fontWeight: "bold" }}>{selectedRoomName}</Text>
+                </Text>
+                <Text style={{ color: colors.subText, fontSize: 12 }}>
+                  {showRoomSection ? "▲ Скрыть" : "▼ Изменить"}
+                </Text>
+              </TouchableOpacity>
+
+              {showRoomSection && (
+                <View
+                  style={[
+                    styles.accordionContent,
+                    { borderColor: colors.border },
+                  ]}
+                >
+                  <View style={styles.categoriesContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                        selectedRoomId === null && styles.categoryChipSelected,
+                      ]}
+                      onPress={() =>
+                        setSelectedRoomId && setSelectedRoomId(null)
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.categoryText,
+                          { color: colors.text },
+                          selectedRoomId === null &&
+                            styles.categoryTextSelected,
+                        ]}
+                      >
+                        — Нет —
+                      </Text>
+                    </TouchableOpacity>
+
+                    {rooms.map((room) => (
+                      <TouchableOpacity
+                        key={room.id}
+                        style={[
+                          styles.categoryChip,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
+                          selectedRoomId === room.id &&
+                            styles.categoryChipSelected,
+                        ]}
+                        onPress={() =>
+                          setSelectedRoomId &&
+                          setSelectedRoomId(room.id || null)
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.categoryText,
+                            { color: colors.text },
+                            selectedRoomId === room.id &&
+                              styles.categoryTextSelected,
+                          ]}
+                        >
+                          📍 {room.name} {room.floor ? `(${room.floor})` : ""}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </View>
     </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, borderRadius: 12 },
+  sectionTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
+  label: { fontSize: 13, marginBottom: 6, marginTop: 4 },
+  input: {
+    height: 46,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    fontSize: 14,
+  },
+  fetchBtn: {
+    height: 44,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#c8e6c9",
+  },
+  categoriesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 4,
+  },
+  categoryChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  categoryChipSelected: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  categoryText: { fontSize: 13, fontWeight: "500" },
+  categoryTextSelected: { color: "#fff", fontWeight: "bold" },
+  addSubCategoryBtn: {
+    backgroundColor: "#20c997",
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+    height: 42,
+  },
+  extraCard: {
+    marginTop: 20,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  extraCardHeader: {
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  accordionToggle: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  accordionContent: {
+    marginTop: 6,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: "dashed",
+  },
+  submitBtn: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 6,
+  },
+  submitBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+});

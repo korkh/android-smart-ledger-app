@@ -7,6 +7,7 @@ export interface InventoryItem {
   categoryPath?: string;
   vehicleId?: string;
   oemNumber?: string;
+  familyMemberId?: string;
   storeName?: string; // Store name (e.g. Biltema, Mekonomen, Thansen)
   price: number;
   currency: string;
@@ -14,4 +15,5 @@ export interface InventoryItem {
   imageUrl?: string;
   notes: string;
   createdAt?: number;
+  roomId?: string;
 }
