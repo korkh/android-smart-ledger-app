@@ -2,7 +2,7 @@
 
 All notable changes to the Smart Ledger project will be documented in this file.
 
-## [1.0.2] - 2026-10-02
+## [1.0.1(4)] - 2026-10-02
 ### Added
 - **Home Organizer:** Added comprehensive structural home management module to track rooms, floors, dimensions, and exact sizes of windows and doors.
 - **Family Sizes & Clothing Tracking:** Implemented a dedicated family module to manage family members' clothing sizes, shoe sizes, heights, and custom notes.
