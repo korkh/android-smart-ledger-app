@@ -33,6 +33,8 @@ interface SettingsScreenProps {
   setVehOemNotes: (val: string) => void;
   onAddVehicle: () => void;
   onEditVehicle: (veh: Vehicle) => void;
+  onDeleteVehicle: (id: string) => void;
+  onSelectVehicle: (vehicle: Vehicle) => void;
 
   categories: Category[];
   selectedParentId: string | null;
@@ -55,6 +57,7 @@ interface SettingsScreenProps {
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   vehicles = [],
+  onDeleteVehicle,
   vehName,
   setVehName,
   vehVin,
@@ -65,6 +68,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   setVehOemNotes,
   onAddVehicle,
   onEditVehicle,
+  onSelectVehicle,
   categories = [],
   selectedParentId,
   setSelectedParentId,
@@ -207,6 +211,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           {showGarage && (
             <View style={{ marginTop: 12 }}>
               <GarageTab
+                onDeleteVehicle={(id) => onDeleteVehicle(id)}
                 vehicles={vehicles}
                 vehName={vehName}
                 setVehName={setVehName}
@@ -218,6 +223,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 setVehOemNotes={setVehOemNotes}
                 onAddVehicle={onAddVehicle}
                 onEditVehicle={onEditVehicle}
+                onSelectVehicle={onSelectVehicle}
               />
             </View>
           )}
@@ -312,7 +318,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <Text
               style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
             >
-              🏠 Организатор дома (Комнаты и проемы) ({rooms.length})
+              🏠 {t("homeOrganizer") || "Организатор дома (Комнаты и проемы)"} (
+              {rooms.length})
             </Text>
             <Text style={{ fontSize: 16, color: colors.text }}>
               {showRooms ? "▲" : "▼"}
@@ -331,7 +338,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       marginBottom: 8,
                     }}
                   >
-                    Существующие помещения:
+                    {t("existingRooms") || "Существующие помещения"}:
                   </Text>
                   {rooms.map((room) => (
                     <View
@@ -383,7 +390,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                             marginTop: 4,
                           }}
                         >
-                          📏 Размер: {room.dimensions}
+                          📏 {t("sizeLabel") || "Размер"}: {room.dimensions}
                         </Text>
                       ) : null}
                       {room.windowsSize ? (
@@ -394,7 +401,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                             marginTop: 2,
                           }}
                         >
-                          🪟 Окна: {room.windowsSize}
+                          🪟 {t("windowsLabel") || "Окна"}: {room.windowsSize}
                         </Text>
                       ) : null}
                       {room.doorsSize ? (
@@ -405,7 +412,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                             marginTop: 2,
                           }}
                         >
-                          🚪 Двери: {room.doorsSize}
+                          🚪 {t("doorsLabel") || "Двери"}: {room.doorsSize}
                         </Text>
                       ) : null}
                     </View>
@@ -431,7 +438,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     marginBottom: 10,
                   }}
                 >
-                  + Добавить новую комнату:
+                  + {t("addNewRoom") || "Добавить новую комнату"}:
                 </Text>
 
                 <TextInput
@@ -443,7 +450,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       borderColor: colors.border,
                     },
                   ]}
-                  placeholder="Название комнаты (напр. Гостиная)"
+                  placeholder={
+                    t("roomNamePlaceholder") ||
+                    "Название комнаты (напр. Гостиная)"
+                  }
                   placeholderTextColor="#888"
                   value={roomName}
                   onChangeText={setRoomName}
@@ -457,7 +467,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       borderColor: colors.border,
                     },
                   ]}
-                  placeholder="Этаж (напр. 1 этаж)"
+                  placeholder={
+                    t("roomFloorPlaceholder") || "Этаж (напр. 1 этаж)"
+                  }
                   placeholderTextColor="#888"
                   value={roomFloor}
                   onChangeText={setRoomFloor}
@@ -471,7 +483,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       borderColor: colors.border,
                     },
                   ]}
-                  placeholder="Размер комнаты (напр. 4x5 м, высота 2.6м)"
+                  placeholder={
+                    t("roomDimensionsPlaceholder") ||
+                    "Размер комнаты (напр. 4x5 м, высота 2.6м)"
+                  }
                   placeholderTextColor="#888"
                   value={roomDimensions}
                   onChangeText={setRoomDimensions}
@@ -485,7 +500,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       borderColor: colors.border,
                     },
                   ]}
-                  placeholder="Размеры окон (напр. 140x160 см)"
+                  placeholder={
+                    t("roomWindowsPlaceholder") ||
+                    "Размеры окон (напр. 140x160 см)"
+                  }
                   placeholderTextColor="#888"
                   value={roomWindows}
                   onChangeText={setRoomWindows}
@@ -499,7 +517,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       borderColor: colors.border,
                     },
                   ]}
-                  placeholder="Размеры дверей (напр. 90x200 см)"
+                  placeholder={
+                    t("roomDoorsPlaceholder") ||
+                    "Размеры дверей (напр. 90x200 см)"
+                  }
                   placeholderTextColor="#888"
                   value={roomDoors}
                   onChangeText={setRoomDoors}
@@ -515,7 +536,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   }}
                   onPress={() => {
                     if (!roomName.trim()) {
-                      Alert.alert("Ошибка", "Введите название комнаты");
+                      Alert.alert(
+                        t("errorTitle") || "Ошибка",
+                        t("enterRoomNameAlert") || "Введите название комнаты",
+                      );
                       return;
                     }
                     onAddRoom({
@@ -535,7 +559,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   <Text
                     style={{ color: "#fff", fontWeight: "bold", fontSize: 14 }}
                   >
-                    Сохранить комнату
+                    {t("saveRoomBtn") || "Сохранить комнату"}
                   </Text>
                 </TouchableOpacity>
               </View>

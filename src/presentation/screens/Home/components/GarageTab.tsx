@@ -1,6 +1,9 @@
+// All comments in code are in English as per project rules
+
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Image,
   ScrollView,
   Text,
@@ -24,6 +27,8 @@ interface GarageTabProps {
   setVehOemNotes: (value: string) => void;
   onAddVehicle: () => void;
   onEditVehicle: (vehicle: Vehicle) => void;
+  onDeleteVehicle: (id: string) => void;
+  onSelectVehicle: (vehicle: Vehicle) => void; // Callback to open vehicle details screen
 }
 
 export const GarageTab: React.FC<GarageTabProps> = ({
@@ -38,9 +43,26 @@ export const GarageTab: React.FC<GarageTabProps> = ({
   setVehOemNotes,
   onAddVehicle,
   onEditVehicle,
+  onDeleteVehicle,
+  onSelectVehicle,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
+
+  const confirmDeleteVehicle = (id: string, name: string) => {
+    Alert.alert(
+      t("deleteVehicleTitle") || "Удаление автомобиля",
+      `${t("deleteVehicleConfirm") || "Вы действительно хотите удалить"} "${name}"?`,
+      [
+        { text: t("cancel") || "Отмена", style: "cancel" },
+        {
+          text: t("delete") || "Удалить",
+          style: "destructive",
+          onPress: () => onDeleteVehicle(id),
+        },
+      ],
+    );
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -128,9 +150,18 @@ export const GarageTab: React.FC<GarageTabProps> = ({
         {t("myFleetTitle") || "Мой автопарк"} ({vehicles.length})
       </Text>
       {vehicles.map((veh) => (
-        <View
+        <TouchableOpacity
           key={veh.id}
-          style={[styles.itemCard, { backgroundColor: colors.card }]}
+          style={[
+            styles.itemCard,
+            {
+              backgroundColor: colors.card,
+              flexDirection: "row",
+              alignItems: "center",
+            },
+          ]}
+          onPress={() => onSelectVehicle(veh)}
+          activeOpacity={0.7}
         >
           {veh.photoUrl ? (
             <Image
@@ -139,9 +170,9 @@ export const GarageTab: React.FC<GarageTabProps> = ({
               resizeMode="cover"
             />
           ) : null}
-          <View style={styles.itemInfo}>
+          <View style={[styles.itemInfo, { flex: 1 }]}>
             <Text style={[styles.itemTitle, { color: colors.text }]}>
-              {veh.name}
+              🚗 {veh.name}
             </Text>
             {veh.vin ? (
               <Text style={[styles.itemDetails, { color: colors.subText }]}>
@@ -155,13 +186,33 @@ export const GarageTab: React.FC<GarageTabProps> = ({
             ) : null}
           </View>
 
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => onEditVehicle(veh)}
-          >
-            <Text style={{ fontSize: 16 }}>✏️</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Action buttons (Edit & Delete) */}
+          <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={(e) => {
+                e.stopPropagation(); // Prevent triggering card selection
+                onEditVehicle(veh);
+              }}
+            >
+              <Text style={{ fontSize: 16 }}>✏️</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={(e) => {
+                e.stopPropagation(); // Prevent triggering card selection
+                confirmDeleteVehicle(veh.id!, veh.name);
+              }}
+            >
+              <Text
+                style={{ fontSize: 16, color: "#ff4d4d", fontWeight: "bold" }}
+              >
+                ✕
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );

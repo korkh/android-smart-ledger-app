@@ -41,6 +41,7 @@ import {
 } from "../../../services/roomsService";
 import {
   addVehicle,
+  deleteVehicle,
   fetchUserVehicles,
   updateVehicle,
 } from "../../../services/vehiclesService";
@@ -102,6 +103,7 @@ export default function HomeScreen({
   const [vehVin, setVehVin] = useState<string>("");
   const [vehPhotoUrl, setVehPhotoUrl] = useState<string>("");
   const [vehOemNotes, setVehOemNotes] = useState<string>("");
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   const [title, setTitle] = useState<string>("");
   const [oemNumber, setOemNumber] = useState<string>("");
@@ -148,7 +150,7 @@ export default function HomeScreen({
         setSelectedVehicleId(fetchedVehicles[0].id);
       }
     } catch (error: any) {
-      Alert.alert("Ошибка загрузки", error.message);
+      Alert.alert(t("errorTitle") || "Ошибка загрузки", error.message);
     } finally {
       setLoading(false);
     }
@@ -156,13 +158,19 @@ export default function HomeScreen({
 
   const handleAddItem = async (): Promise<void> => {
     if (!title.trim()) {
-      Alert.alert("Ошибка", "Укажите название позиции");
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        t("enterItemName") || "Укажите название позиции",
+      );
       return;
     }
 
     const targetCategoryId = selectedSubcategoryId || selectedParentId;
     if (!targetCategoryId) {
-      Alert.alert("Ошибка", "Выберите категорию");
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        t("selectCategory") || "Выберите категорию",
+      );
       return;
     }
 
@@ -200,9 +208,12 @@ export default function HomeScreen({
       const updatedItems = await fetchUserItems(user.uid);
       setItems(updatedItems);
       setActiveTab("catalog");
-      Alert.alert("Успешно", "Позиция сохранена в каталог!");
+      Alert.alert(
+        t("successTitle") || "Успешно",
+        t("itemSaved") || "Позиция сохранена в каталог!",
+      );
     } catch (error: any) {
-      Alert.alert("Ошибка сохранения", error.message);
+      Alert.alert(t("errorTitle") || "Ошибка сохранения", error.message);
     } finally {
       setSubmitting(false);
     }
@@ -216,7 +227,10 @@ export default function HomeScreen({
     setItems((prev) =>
       prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)),
     );
-    Alert.alert("Успешно", "Данные позиции обновлены");
+    Alert.alert(
+      t("successTitle") || "Успешно",
+      t("itemUpdated") || "Данные позиции обновлены",
+    );
   };
 
   const handleSaveUpdatedVehicle = async (
@@ -227,7 +241,14 @@ export default function HomeScreen({
     setVehicles((prev) =>
       prev.map((veh) => (veh.id === updatedVehicle.id ? updatedVehicle : veh)),
     );
-    Alert.alert("Успешно", "Данные автомобиля обновлены");
+    Alert.alert(
+      t("successTitle") || "Успешно",
+      t("vehicleUpdated") || "Данные автомобиля обновлены",
+    );
+  };
+
+  const handleSelectVehicle = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
   };
 
   const handleDeleteItem = async (
@@ -237,19 +258,19 @@ export default function HomeScreen({
     if (!id) return;
 
     Alert.alert(
-      "Удаление позиции",
+      t("deleteItemTitle") || "Удаление позиции",
       `Вы уверены, что хотите удалить "${itemTitle || "эту позицию"}"?`,
       [
-        { text: "Отмена", style: "cancel" },
+        { text: t("cancel") || "Отмена", style: "cancel" },
         {
-          text: "Удалить",
+          text: t("delete") || "Удалить",
           style: "destructive",
           onPress: async () => {
             try {
               await deleteInventoryItem(id);
               setItems((prev) => prev.filter((item) => item.id !== id));
             } catch (error: any) {
-              Alert.alert("Ошибка удаления", error.message);
+              Alert.alert(t("errorTitle") || "Ошибка удаления", error.message);
             }
           },
         },
@@ -259,7 +280,10 @@ export default function HomeScreen({
 
   const handleAddCategory = async (): Promise<void> => {
     if (!newCatName.trim()) {
-      Alert.alert("Ошибка", "Введите название");
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        t("categoryNameRequired") || "Введите название",
+      );
       return;
     }
 
@@ -272,7 +296,7 @@ export default function HomeScreen({
       setCategories((prev) => [...prev, created]);
       setNewCatName("");
     } catch (error: any) {
-      Alert.alert("Ошибка добавления", error.message);
+      Alert.alert(t("errorTitle") || "Ошибка добавления", error.message);
     }
   };
 
@@ -289,7 +313,7 @@ export default function HomeScreen({
       setCategories((prev) => [...prev, created]);
       return created.id;
     } catch (error: any) {
-      Alert.alert("Ошибка добавления", error.message);
+      Alert.alert(t("errorTitle") || "Ошибка добавления", error.message);
     }
   };
 
@@ -298,28 +322,35 @@ export default function HomeScreen({
     catName?: string,
   ): Promise<void> => {
     if (!catId) return;
-    Alert.alert("Удаление", `Удалить категорию "${catName}"?`, [
-      { text: "Отмена", style: "cancel" },
-      {
-        text: "Удалить",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteCategory(catId);
-            setCategories((prev) =>
-              prev.filter((c) => c.id !== catId && c.parentId !== catId),
-            );
-          } catch (error: any) {
-            Alert.alert("Ошибка удаления", error.message);
-          }
+    Alert.alert(
+      t("deleteCategoryTitle") || "Удаление",
+      `Удалить категорию "${catName}"?`,
+      [
+        { text: t("cancel") || "Отмена", style: "cancel" },
+        {
+          text: t("delete") || "Удалить",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteCategory(catId);
+              setCategories((prev) =>
+                prev.filter((c) => c.id !== catId && c.parentId !== catId),
+              );
+            } catch (error: any) {
+              Alert.alert(t("errorTitle") || "Ошибка удаления", error.message);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const handleAddVehicle = async (): Promise<void> => {
     if (!vehName.trim()) {
-      Alert.alert("Ошибка", "Укажите марку/модель авто");
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        t("vehicleNameRequired") || "Укажите марку/модель авто",
+      );
       return;
     }
 
@@ -338,9 +369,29 @@ export default function HomeScreen({
       setVehVin("");
       setVehPhotoUrl("");
       setVehOemNotes("");
-      Alert.alert("Успешно", "Автомобиль добавлен!");
+      Alert.alert(
+        t("successTitle") || "Успешно",
+        t("vehicleAdded") || "Автомобиль добавлен!",
+      );
     } catch (error: any) {
-      Alert.alert("Ошибка сохранения авто", error.message);
+      Alert.alert(t("errorTitle") || "Ошибка сохранения авто", error.message);
+    }
+  };
+
+  // Delete vehicle handler
+  const handleDeleteVehicle = async (vehicleId: string) => {
+    try {
+      await deleteVehicle(vehicleId); // вызываем функцию из vehiclesService
+      setVehicles((prev) => prev.filter((v) => v.id !== vehicleId));
+      Alert.alert(
+        t("successTitle") || "Успех",
+        `${vehicles.find((v) => v.id === vehicleId)?.name} успешно удален из гаража.`,
+      );
+    } catch (error: any) {
+      Alert.alert(
+        t("errorTitle") || "Ошибка",
+        error.message || "Не удалось удалить автомобиль.",
+      );
     }
   };
 
@@ -359,28 +410,35 @@ export default function HomeScreen({
       });
 
       setFamilyMembers((prev) => [...prev, created]);
-      Alert.alert("Успешно", "Параметры члена семьи сохранены!");
+      Alert.alert(
+        t("successTitle") || "Успешно",
+        t("familyMemberSaved") || "Параметры члена семьи сохранены!",
+      );
     } catch (error: any) {
-      Alert.alert("Ошибка сохранения", error.message);
+      Alert.alert(t("errorTitle") || "Ошибка сохранения", error.message);
     }
   };
 
   const handleDeleteFamilyMember = async (id: string): Promise<void> => {
-    Alert.alert("Удаление", "Удалить этого члена семьи?", [
-      { text: "Отмена", style: "cancel" },
-      {
-        text: "Удалить",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteFamilyMember(id);
-            setFamilyMembers((prev) => prev.filter((m) => m.id !== id));
-          } catch (error: any) {
-            Alert.alert("Ошибка удаления", error.message);
-          }
+    Alert.alert(
+      t("deleteTitle") || "Удаление",
+      t("deleteFamilyMember") || "Удалить этого члена семьи?",
+      [
+        { text: t("cancel") || "Отмена", style: "cancel" },
+        {
+          text: t("delete") || "Удалить",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteFamilyMember(id);
+              setFamilyMembers((prev) => prev.filter((m) => m.id !== id));
+            } catch (error: any) {
+              Alert.alert(t("errorTitle") || "Ошибка удаления", error.message);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const handleAddRoom = async (
@@ -392,35 +450,44 @@ export default function HomeScreen({
         ...roomData,
       });
       setRooms((prev) => [...prev, created]);
-      Alert.alert("Успешно", "Комната добавлена в организатор!");
+      Alert.alert(
+        t("successTitle") || "Успешно",
+        t("roomAdded") || "Комната добавлена в организатор!",
+      );
     } catch (error: any) {
-      Alert.alert("Ошибка", error.message);
+      Alert.alert(t("errorTitle") || "Ошибка", error.message);
     }
   };
 
   const handleDeleteRoom = async (id: string): Promise<void> => {
-    Alert.alert("Удаление", "Удалить эту комнату?", [
-      { text: "Отмена", style: "cancel" },
-      {
-        text: "Удалить",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteRoom(id);
-            setRooms((prev) => prev.filter((r) => r.id !== id));
-          } catch (error: any) {
-            Alert.alert("Ошибка удаления", error.message);
-          }
+    Alert.alert(
+      t("deleteTitle") || "Удаление",
+      t("deleteRoom") || "Удалить эту комнату?",
+      [
+        { text: t("cancel") || "Отмена", style: "cancel" },
+        {
+          text: t("delete") || "Удалить",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteRoom(id);
+              setRooms((prev) => prev.filter((r) => r.id !== id));
+            } catch (error: any) {
+              Alert.alert(t("errorTitle") || "Ошибка", error.message);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header with Toggle Settings */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Smart Ledger</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {t("appTitle") || "Smart Ledger"}
+        </Text>
         <TouchableOpacity
           onPress={() => {
             if (activeTab === "settings") {
@@ -565,6 +632,8 @@ export default function HomeScreen({
                 onAddRoom={handleAddRoom}
                 onDeleteRoom={handleDeleteRoom}
                 onLogout={onLogout}
+                onDeleteVehicle={(id) => handleDeleteVehicle(id)}
+                onSelectVehicle={handleSelectVehicle}
               />
             )}
           </>
